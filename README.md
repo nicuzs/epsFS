@@ -1,11 +1,13 @@
 FUSE fun
 ========
-Kid of doc also 
-&&&&&&&&&&&&&&&
+##Kid of docs 
 
-Mounting fs
-***********
+
+* Mounting the fs
+
 run:
-$groups <usename>
+``$groups <usename>``
+
 if you don't see fuse there, add it using:
-$sudo addgroup <username> fuse
+
+``$sudo addgroup <username> fuse``
