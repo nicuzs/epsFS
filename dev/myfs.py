@@ -100,6 +100,8 @@ class Passthrough(Operations):
     # ============
 
     def open(self, path, flags):
+        print "opened"
+
         full_path = self._full_path(path)
         return os.open(full_path, flags)
 
