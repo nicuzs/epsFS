@@ -3,7 +3,7 @@ from __future__ import with_statement
 import os
 import sys
 import errno
-
+import datetime
 from fuse import FUSE, FuseOSError, Operations
 
 
@@ -101,9 +101,20 @@ class Passthrough(Operations):
 
     def open(self, path, flags):
         print "opened"
-
+        print "->"
+        # upper_bound = datetime.time(18, 0, 0)
+        # if datetime.datetime.now().time() > upper_bound:
+        #     print "no access for you", datetime.datetime.now().time()
+            # return 4
         full_path = self._full_path(path)
-        return os.open(full_path, flags)
+        print "->"
+        resp = os.open(full_path, flags)
+        print "->"
+
+        print type(resp)
+        print len(resp)
+        print '----------------->', resp, '<-----'
+        return resp
 
     def create(self, path, mode, fi=None):
         full_path = self._full_path(path)
