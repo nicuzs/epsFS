@@ -1,4 +1,5 @@
 import os
+import time
 import errno
 import datetime
 
@@ -134,4 +135,5 @@ class FsEps(Operations):
         return os.close(fh)
 
     def fsync(self, path, fdatasync, fh):
+        time.sleep(10)
         return self.flush(path, fh)
