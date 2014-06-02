@@ -1,33 +1,10 @@
-import sys
+#!/usr/bin/env python
 import os
+import sys
 
-from fuse import FUSE
-from fseps import FsEps
+if __name__ == "__main__":
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fseps.settings")
 
-RELATIVE_ROOT = '../dir/fs_root'
-RELATIVE_MOUNT = '../dir/mnt_point/'
+    from django.core.management import execute_from_command_line
 
-RUN_CFG_DEFAULT = {
-    'operations': FsEps(root=os.path.join(os.getcwd(), RELATIVE_ROOT)),
-    'mountpoint': os.path.join(os.getcwd(), RELATIVE_MOUNT),
-    'foreground': True
-}
-
-RUN_CFG_DEBUG = {
-    'operations': FsEps(root=os.path.join(os.getcwd(), RELATIVE_ROOT)),
-    'mountpoint': os.path.join(os.getcwd(), RELATIVE_MOUNT),
-    'foreground': True,
-    'debug': True
-}
-
-if __name__ == '__main__':
-    cfg = RUN_CFG_DEBUG if len(sys.argv) == 2 and sys.argv[1] == 'd' \
-        else RUN_CFG_DEFAULT
-
-    if cfg == RUN_CFG_DEFAULT:
-        print('\n->Started using the default config')
-    elif cfg == RUN_CFG_DEBUG:
-        print('\n->Started using the debug config')
-
-    FUSE(**cfg)
-
+    execute_from_command_line(sys.argv)
