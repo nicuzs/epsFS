@@ -1,6 +1,5 @@
 import sys
 import os
-from django.conf import settings
 
 from fuse import FUSE
 from fseps import FsEps

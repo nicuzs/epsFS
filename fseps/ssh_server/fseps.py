@@ -9,10 +9,9 @@ from fuse import FuseOSError, Operations
 class FsEps(Operations):
     def __init__(self, root):
         # try:
-        #     FUSE(FsEps(sys.argv[1]), sys.argv[2], foreground=True)
+        # FUSE(FsEps(sys.argv[1]), sys.argv[2], foreground=True)
         # except IndexError:
         #     print "2 parameters are required: 1)'fs root' and 2)'mountpoint'"
-
 
         self.root = root
 
