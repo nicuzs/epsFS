@@ -1,3 +1,10 @@
+import os
+
+RELATIVE_ROOT = '../../file_sys/fs_root/'
+RELATIVE_MOUNT = '../../file_sys/mnt_point/'
+
+FILESYSTEM_ACCESS_ROOT = os.path.join(os.getcwd(), RELATIVE_MOUNT)
+
 USER_STORAGE_LOCATION = 'users.db'
 
 SSH_PUBLIC_KEY = \

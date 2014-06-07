@@ -1,34 +1,24 @@
 import settings
-from twisted.conch.ssh import keys, factory, userauth, connection
+# from twisted.conch.ssh import keys, factory, userauth, connection
 from twisted.conch.checkers import SSHPublicKeyDatabase
 from twisted.cred import portal, checkers
 from zope.interface import implements
-from twisted.conch import error, avatar
-from twisted.internet import protocol
+from twisted.conch import avatar, recvline
+from twisted.conch.interfaces import IConchUser, ISession
 from twisted.conch.ssh import keys, session
 from twisted.conch.insults import insults
+from ssh_protocol import FsepsSshProtocol
 
-class FsepsFactory(factory.SSHFactory):
-    def __init__(self, *args, **kwargs):
-        FsepsFactory.portal = kwargs['portal']  # i don't use `get` so it breaks
 
-    publicKeys = {
-        'ssh-rsa': keys.Key.fromString(data=settings.SSH_PUBLIC_KEY)
-    }
-    privateKeys = {
-        'ssh-rsa': keys.Key.fromString(data=settings.SSH_PRIVATE_KEY)
-    }
-    services = {
-        'ssh-userauth': userauth.SSHUserAuthServer,
-        'ssh-connection': connection.SSHConnection
-    }
+def get_host_ssh_keys():
+    return ({'ssh-rsa': keys.Key.fromString(data=settings.SSH_PRIVATE_KEY)},
+            {'ssh-rsa': keys.Key.fromString(data=settings.SSH_PUBLIC_KEY)})
 
 
 class SshUsersDb(SSHPublicKeyDatabase):
     def checkKey(self, credentials):
         saved_keys = {
             'nicu': keys.Key.fromString(data=settings.SSH_PUBLIC_KEY).blob(),
-
         }
         return bool(len([username for username, key in saved_keys.items()
                          if (credentials.username == username and
@@ -46,29 +36,33 @@ class PasswdUsersDb(checkers.FilePasswordDB):
 
 
 class FsepsAvatar(avatar.ConchUser):
+    implements(ISession)  # I f@*king hate this java-like approach
+
     def __init__(self, username):
         avatar.ConchUser.__init__(self)
         self.username = username
         self.channelLookup.update({'session': session.SSHSession})
 
+    def openShell(self, protocol):
+        serverProtocol = insults.ServerProtocol(FsepsSshProtocol, self)
+        serverProtocol.makeConnection(protocol)
+        protocol.makeConnection(session.wrapProtocol(serverProtocol))
 
-class FsepsRealm:
+    def getPty(self, terminal, windowSize, attrs):
+        return None
+
+    def execCommand(self, protocol, cmd):
+        raise NotImplementedError()
+
+    def closed(self):
+        pass
+
+
+class FsepsRealm(object):
     implements(portal.IRealm)
 
     def requestAvatar(self, avatarId, mind, *interfaces):
-        return interfaces[0], FsepsAvatar(avatarId), lambda: None
-
-
-class FsepsProtocol(protocol.Protocol):
-    def __init__(self, user):
-        self.user = user
-    def dataReceived(self, data):
-        # import ipdb; ipdb.set_trace()
-
-        if data == '\r':
-            data = '\r\n'
-        elif data == '\x03':  # ^C
-            self.transport.loseConnection()
-            return
-        self.transport.write(data)
-
+        if IConchUser in interfaces:
+            return interfaces[0], FsepsAvatar(avatarId), lambda: None
+        else:
+            raise NotImplementedError("No supported interfaces found.")

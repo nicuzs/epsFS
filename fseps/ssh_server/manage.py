@@ -1,11 +1,9 @@
 import sys
 import os
 
+from settings import RELATIVE_MOUNT, RELATIVE_ROOT
 from fuse import FUSE
 from fseps import FsEps
-
-RELATIVE_ROOT = '../dir/fs_root'
-RELATIVE_MOUNT = '../dir/mnt_point/'
 
 RUN_CFG_DEFAULT = {
     'operations': FsEps(root=os.path.join(os.getcwd(), RELATIVE_ROOT)),
