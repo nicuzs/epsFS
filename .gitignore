@@ -1,3 +1,4 @@
 ve/
 .idea/
 *.pyc
+file_sys/unmount/*.pid

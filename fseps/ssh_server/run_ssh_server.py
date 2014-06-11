@@ -5,7 +5,7 @@ from twisted.conch.ssh import factory
 from twisted.internet import reactor
 from twisted.python import log
 
-from ssh_server_setup import *
+from sshserver_spine import *
 
 log.startLogging(sys.stderr)
 # log.startLogging(open('/home/nicu/dev/logs/fseps/ssh_server.log', 'w'))

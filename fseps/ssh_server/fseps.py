@@ -8,19 +8,19 @@ from fuse import FuseOSError, Operations
 
 class FsEps(Operations):
     def __init__(self, root):
-        # try:
-        # FUSE(FsEps(sys.argv[1]), sys.argv[2], foreground=True)
-        # except IndexError:
-        #     print "2 parameters are required: 1)'fs root' and 2)'mountpoint'"
-
         self.root = root
 
     # Helpers
     # =======
     def _full_path(self, partial):
+        # print partial
+        # print 'some kid is trying to acess the full path'
         if partial.startswith("/"):
             partial = partial[1:]
         path = os.path.join(self.root, partial)
+        # print path
+        #
+        # print "-----------------------"
         return path
 
     # Filesystem methods
@@ -42,12 +42,19 @@ class FsEps(Operations):
     def getattr(self, path, fh=None):
         full_path = self._full_path(path)
         st = os.lstat(full_path)
-        return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
+
+
+        x = dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                                                         'st_gid', 'st_mode',
                                                         'st_mtime', 'st_nlink',
                                                         'st_size', 'st_uid'))
+        print "-------------------->"
+        for k, v in x.items():
+            print str(k) + "->"+ str(type(v)) + str(v)
+        return x
 
     def readdir(self, path, fh):
+
         full_path = self._full_path(path)
 
         dirents = ['.', '..']
@@ -75,15 +82,15 @@ class FsEps(Operations):
         print "mkdir->"
         return os.mkdir(self._full_path(path), mode)
 
-    def statfs(self, path):
-        full_path = self._full_path(path)
-        stv = os.statvfs(full_path)
-        return dict((key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
-                                                         'f_blocks', 'f_bsize',
-                                                         'f_favail', 'f_ffree',
-                                                         'f_files', 'f_flag',
-                                                         'f_frsize',
-                                                         'f_namemax'))
+    # def statfs(self, path):
+    #     full_path = self._full_path(path)
+    #     stv = os.statvfs(full_path)
+    #     return dict((key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
+    #                                                      'f_blocks', 'f_bsize',
+    #                                                      'f_favail', 'f_ffree',
+    #                                                      'f_files', 'f_flag',
+    #                                                      'f_frsize',
+    #                                                      'f_namemax'))
 
     def unlink(self, path):
         return os.unlink(self._full_path(path))
@@ -106,7 +113,7 @@ class FsEps(Operations):
         lower_bound = datetime.time(9, 0, 0)
         now = datetime.datetime.now().time()
         # if now > upper_bound or now < lower_bound:
-        raise FuseOSError(errno.EACCES, "adfsdfsdfas")
+        # raise FuseOSError(errno.EACCES, "adfsdfsdfas")
         full_path = self._full_path(path)
         return os.open(full_path, flags)
 

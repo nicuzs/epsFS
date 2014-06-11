@@ -1,9 +1,8 @@
 import settings
-# from twisted.conch.ssh import keys, factory, userauth, connection
 from twisted.conch.checkers import SSHPublicKeyDatabase
 from twisted.cred import portal, checkers
 from zope.interface import implements
-from twisted.conch import avatar, recvline
+from twisted.conch import avatar
 from twisted.conch.interfaces import IConchUser, ISession
 from twisted.conch.ssh import keys, session
 from twisted.conch.insults import insults
@@ -32,7 +31,8 @@ class PasswdUsersDb(checkers.FilePasswordDB):
             by some dumb Java lovers who do not know how to subclass `object`
         """
         checkers.FilePasswordDB.__init__(
-            self, filename=settings.USER_STORAGE_LOCATION, delim=';')
+            self, filename=settings.USER_STORAGE_LOCATION, delim=';',
+            usernameField=1, passwordField=2)
 
 
 class FsepsAvatar(avatar.ConchUser):
@@ -50,6 +50,10 @@ class FsepsAvatar(avatar.ConchUser):
 
     def getPty(self, terminal, windowSize, attrs):
         return None
+
+    def windowChanged(self, *args, **kwargs):
+        # when the shhclient resizes the window
+        pass
 
     def execCommand(self, protocol, cmd):
         raise NotImplementedError()

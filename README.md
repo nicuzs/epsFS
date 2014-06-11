@@ -27,6 +27,23 @@ permission set:
 
 * Connecting to my custom ssh server:
     ``ssh user@127.0.0.1 -p 8022 #localhost - not really cool``
+
     ``ssh user@192.168.1.x -p 8022 #cooler but you have to setup port fwd on the router``
 
 * When generatin' ssh keys use ``-b 1024`` argument
+
+
+* USER MANAGEMENT - posix standard way
+``sudo useradd <uname>``
+
+``sudo passwd <uname>``
+
+the user wil also have a ``/home/<username>/media`` directory
+this will act like the global /media directory
+
+
+use ``awk`` to get the available sys users and uids
+``awk -F":" '{ print $1 ";" $3 }' /etc/passwd``
+
+*if your system ever crashes, unmount the mountpoint using:
+    ``fusermount -u <mount_dir>``

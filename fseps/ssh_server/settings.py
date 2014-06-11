@@ -1,11 +1,41 @@
 import os
+import getpass
+from fseps import FsEps
 
-RELATIVE_ROOT = '../../file_sys/fs_root/'
-RELATIVE_MOUNT = '../../file_sys/mnt_point/'
+FILE_SYS_PATH = '/home/nicu/Dropbox/kernel/fseps/file_sys/'
+# TODO find a way to get this the right way - using os.join ...
 
-FILESYSTEM_ACCESS_ROOT = os.path.join(os.getcwd(), RELATIVE_MOUNT)
+RELATIVE_ROOT = '%sfs_root/' % FILE_SYS_PATH
+ABSOLUTE_MOUNTPOINT_PATH = '/home/%s/media/'  # for the ssh user
 
-USER_STORAGE_LOCATION = 'users.db'
+
+FILESYSTEM_SOURCE_ROOT = RELATIVE_ROOT
+
+RUN_CFG_DEFAULT = {
+    'operations': FsEps(root=RELATIVE_ROOT),
+    'mountpoint': ABSOLUTE_MOUNTPOINT_PATH,
+    'foreground': True
+}
+
+USER_STORAGE_LOCATION = '%susers.data' % FILE_SYS_PATH
+
+SSH_SERVER_WELCOME_MSG = """
+*****************************************************************
+  ,           ,         __|   __|  __|  _ \   __|
+ /             \\        _|  \__ \  _|   __/ \__ \\
+((__-^^-,-^^-__))      _|   ____/ ___| _|   ____/
+ `-_---' `---_-'
+  `--|o` 'o|--'   FSEPS shh server
+     \  `  /      Copyright (C) 2014 NiCU Natrapeiu
+      ): :(       This is free software, and you are welcome
+      :o_o:       to redistribute it under certain conditions
+       "-"        i.e. GNU GPL v3 or later
+Logged in as: %s
+*****************************************************************\n"""
+
+SSH_SERVER_NOT_MOUNTED_MSG = 'The filesystem is not mounted. Please contact '\
+                             'the administrator.\n'\
+                             'You have to type "exit" to leave'\
 
 SSH_PUBLIC_KEY = \
     'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAgQCnuBWo39zhKg2z5hq7fEGTXpNJk+sAr6S3' \
