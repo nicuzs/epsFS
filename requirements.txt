@@ -1,5 +1,2 @@
 fusepy==2.0.2
-Twisted==14.0.0
-pycrypto==2.6.1
-pysnmp==4.2.5
 Django==1.6.5

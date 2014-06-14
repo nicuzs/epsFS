@@ -16,3 +16,8 @@ from settings import FSEPS_CONFIG_USR
 #                     'uname': user_data[1],
 #                     'groups': []}
 #         return {}
+
+
+def get_connected_ssh_users():
+    pass
+
