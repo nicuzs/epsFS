@@ -4,15 +4,16 @@ import errno
 import datetime
 
 from fuse import FuseOSError, Operations, fuse_get_context
-from settings import FSEPS_PERMISSIONS_FILE_NAME
+from settings import EPSFS_PERMISSIONS_FILE_NAME
 
 
-class FsEps(Operations):
+class EpsFSOperations(Operations):
     def __init__(self, root):
         self.root = root
         print self.root
     # Helpers
     # =======
+
     def _full_path(self, partial):
         # print partial
         # print 'some kid is trying to acess the full path'
@@ -67,7 +68,7 @@ class FsEps(Operations):
         dirents = ['.', '..']
         if os.path.isdir(full_path):
             dirents.extend(os.listdir(full_path))
-        dirents = [x for x in dirents if x != FSEPS_PERMISSIONS_FILE_NAME]
+        dirents = [x for x in dirents if x != EPSFS_PERMISSIONS_FILE_NAME]
         for r in dirents:
             yield r
 
@@ -106,7 +107,7 @@ class FsEps(Operations):
 
     def unlink(self, path):
         dir_path, filename = os.path.split(path)
-        if filename == FSEPS_PERMISSIONS_FILE_NAME:
+        if filename == EPSFS_PERMISSIONS_FILE_NAME:
             raise FuseOSError(errno.ENOENT)
         print "DELETED SOMETHING"
         return os.unlink(self._full_path(path))
@@ -126,7 +127,7 @@ class FsEps(Operations):
     # File methods
     def open(self, path, flags):
         dir_path, filename = os.path.split(path)
-        if filename == FSEPS_PERMISSIONS_FILE_NAME:
+        if filename == EPSFS_PERMISSIONS_FILE_NAME:
             raise FuseOSError(errno.ENOENT)
         upper_bound = datetime.time(18, 0, 0)
         lower_bound = datetime.time(9, 0, 0)
@@ -139,7 +140,7 @@ class FsEps(Operations):
     def create(self, path, mode, fi=None):
         print "file created "
         dir_path, filename = os.path.split(path)
-        if filename == FSEPS_PERMISSIONS_FILE_NAME:
+        if filename == EPSFS_PERMISSIONS_FILE_NAME:
             raise FuseOSError(errno.ENOENT)
         full_path = self._full_path(path)
         return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)

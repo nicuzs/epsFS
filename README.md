@@ -1,6 +1,6 @@
-FUSE fun
-========
-##Kid of docs
+EpsFS
+=====
+##Kind of docs (also a very good example of how you sholudn't write a documentation)
 
 
 * Mounting the fs
@@ -11,6 +11,10 @@ run:
 if you don't see fuse there, add it using:
 
 ``$sudo addgroup <username> fuse``
+
+To remove a user from a group use:
+
+``sudo deluser tim fuse``
 
 restart your session ``$ cinnamon-session-exit``
 

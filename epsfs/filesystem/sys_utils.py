@@ -1,6 +1,6 @@
 import os
 
-from settings import FSEPS_CONFIG_USR
+from settings import EPSFS_CONFIG_USR
 
 
 # def get_user_data(uname=None, uid=None):
