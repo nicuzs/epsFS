@@ -51,3 +51,6 @@ use ``awk`` to get the available sys users and uids
 
 *if your system ever crashes, unmount the mountpoint using:
     ``fusermount -u <mount_dir>``
+
+*i linked the bash_history file to /dev/null just to make user's history more secure
+    ``ln /dev/null .bash_history -sf``

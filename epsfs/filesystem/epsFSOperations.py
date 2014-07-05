@@ -1,68 +1,80 @@
 import os
+import stat
 import time
 import errno
 import datetime
 
 from fuse import FuseOSError, Operations, fuse_get_context
 from settings import EPSFS_PERMISSIONS_FILE_NAME
+from sys_utils import load_users, load_groups
 
 
 class EpsFSOperations(Operations):
     def __init__(self, root):
         self.root = root
-        print self.root
-    # Helpers
-    # =======
+        self.users = load_users()
+        self.groups = load_groups()
+        # self.processed = False
+        #self.processed_files = [] this will help you with concurrent users
 
+        for i, v in self.users.items():
+            print i, '--->', v
+        print type(self.groups)
+        for i, v in self.groups.items():
+            print i, '--->', v
+
+    # Utils
     def _full_path(self, partial):
-        # print partial
-        # print 'some kid is trying to acess the full path'
         if partial.startswith("/"):
             partial = partial[1:]
         path = os.path.join(self.root, partial)
-        # print path
-        #
-        # print "-----------------------"
         return path
 
-    # Filesystem methods
-    # ==================
+    def get_group_id(self, group_name):
 
+        group_ids = [g.get('gid') for g in self.groups.values()
+                     if g.get('gname') == group_name]
+        return group_ids[0] if group_ids else None
+
+    def get_eps_context(self):
+        context_data = list(fuse_get_context())
+
+        group_ids = [self.get_group_id(gname) for gname in
+                     self.users.get(context_data[0], {}).get('groups')]
+        group_ids.sort()
+        context_data[1] = group_ids
+        return tuple(context_data)
+
+    def get_inherited_permissions(self):
+        pass
+
+
+    def create_perms_file(self, full_current_path):
+        """
+        The file mode is 700 but it doesn't actually matter
+        (except outside the fs)
+        """
+        return os.open(full_current_path + '/' + EPSFS_PERMISSIONS_FILE_NAME,
+                       os.O_WRONLY | os.O_CREAT,
+                       stat.S_IRWXU)
+
+    # System calls
     def access(self, path, mode):
-        print type(path), path, 'xxxxx>', type(mode), mode,'<<<'
         full_path = self._full_path(path)
         if not os.access(full_path, mode):
             raise FuseOSError(errno.EACCES)
 
-    def chmod(self, path, mode):
-        full_path = self._full_path(path)
-        return os.chmod(full_path, mode)
-
-    def chown(self, path, uid, gid):
-        full_path = self._full_path(path)
-        return os.chown(full_path, uid, gid)
-
     def getattr(self, path, fh=None):
         full_path = self._full_path(path)
         st = os.lstat(full_path)
-
-        # print dir(st)
-
-        print '**************'
-        x = dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
+        return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                                                         'st_gid', 'st_mode',
                                                         'st_mtime', 'st_nlink',
-                                                        'st_size', 'st_uid', 'st_rdev'))
-        print "-------------------->"
-        # x['st_uid'] = 1001
-        for k, v in x.items():
-            print str(k) + "->" + str(v)
-        return x
+                                                        'st_size', 'st_uid',
+                                                        'st_rdev'))
 
     def readdir(self, path, fh):
-        print '@@@@@@@@@@@@@@@@@@@@@@@@@@'
-        print fuse_get_context()
-        print '@@@@@@@@@@@@@@@@@@@@@@@@@@'
+        print '-->', self.get_eps_context()
         full_path = self._full_path(path)
 
         dirents = ['.', '..']
@@ -81,9 +93,6 @@ class EpsFSOperations(Operations):
             return pathname
 
     def mknod(self, path, mode, dev):
-        print "create file "
-        print path, mode, dev
-        print "done\n"
         return os.mknod(self._full_path(path), mode, dev)
 
     def rmdir(self, path):
@@ -91,38 +100,11 @@ class EpsFSOperations(Operations):
         return os.rmdir(full_path)
 
     def mkdir(self, path, mode):
-        print "mkdir->"
-        return os.mkdir(self._full_path(path), mode)
-
-    def statfs(self, path):
-        print '\n\n statfs$$$$$$$$$$$$\n\n'
         full_path = self._full_path(path)
-        stv = os.statvfs(full_path)
-        return dict((key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
-                                                         'f_blocks', 'f_bsize',
-                                                         'f_favail', 'f_ffree',
-                                                         'f_files', 'f_flag',
-                                                         'f_frsize',
-                                                         'f_namemax'))
+        return_val = os.mkdir(full_path, mode)
 
-    def unlink(self, path):
-        dir_path, filename = os.path.split(path)
-        if filename == EPSFS_PERMISSIONS_FILE_NAME:
-            raise FuseOSError(errno.ENOENT)
-        print "DELETED SOMETHING"
-        return os.unlink(self._full_path(path))
-
-    def symlink(self, target, name):
-        return os.symlink(self._full_path(target), self._full_path(name))
-
-    def rename(self, old, new):
-        return os.rename(self._full_path(old), self._full_path(new))
-
-    def link(self, target, name):
-        return os.link(self._full_path(target), self._full_path(name))
-
-    def utimens(self, path, times=None):
-        return os.utime(self._full_path(path), times)
+        self.create_perms_file(full_path)
+        return return_val
 
     # File methods
     def open(self, path, flags):
@@ -138,7 +120,8 @@ class EpsFSOperations(Operations):
         return os.open(full_path, flags)
 
     def create(self, path, mode, fi=None):
-        print "file created "
+        uid, gid, pid = self.get_eps_context()
+        print mode, "-->", fi, type(mode)
         dir_path, filename = os.path.split(path)
         if filename == EPSFS_PERMISSIONS_FILE_NAME:
             raise FuseOSError(errno.ENOENT)
@@ -146,10 +129,12 @@ class EpsFSOperations(Operations):
         return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
 
     def read(self, path, length, offset, fh):
+        print 'read'
         os.lseek(fh, offset, os.SEEK_SET)
         return os.read(fh, length)
 
     def write(self, path, buf, offset, fh):
+        print 'write'
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 
