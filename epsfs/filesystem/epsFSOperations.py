@@ -3,10 +3,14 @@ import stat
 import time
 import errno
 import datetime
+import re
 
 from fuse import FuseOSError, Operations, fuse_get_context
-from settings import EPSFS_PERMISSIONS_FILE_NAME
+from settings import EPSFS_PERMISSIONS_FILE_NAME, EPSFS_AND, EPSFS_OR
 from sys_utils import load_users, load_groups
+from models import AccesRule
+
+EPSFS_OPERANDS = (EPSFS_AND, EPSFS_OR)
 
 
 class EpsFSOperations(Operations):
@@ -19,7 +23,6 @@ class EpsFSOperations(Operations):
 
         for i, v in self.users.items():
             print i, '--->', v
-        print type(self.groups)
         for i, v in self.groups.items():
             print i, '--->', v
 
@@ -31,7 +34,9 @@ class EpsFSOperations(Operations):
         return path
 
     def get_group_id(self, group_name):
-
+        """
+        Return the matching uid for the required group_name or None
+        """
         group_ids = [g.get('gid') for g in self.groups.values()
                      if g.get('gname') == group_name]
         return group_ids[0] if group_ids else None
@@ -45,9 +50,22 @@ class EpsFSOperations(Operations):
         context_data[1] = group_ids
         return tuple(context_data)
 
-    def get_inherited_permissions(self):
-        pass
-
+    def check_ancestor(self, group_id, required_id):
+        """
+        Return true if required_id is an ancestor of group_id
+        """
+        crt_gid = group_id
+        while True:
+            crt_group = self.groups.get(crt_gid)
+            if not crt_group.get('parent'):
+            # didn't found the required_id and the current pos is the root of
+            # the branch
+                return False
+            parent_id = self.get_group_id(crt_group.get('parent'))
+            if parent_id == required_id:
+            # required_id is an ancestor of group_id stop the execution
+                return True
+            crt_gid = parent_id
 
     def create_perms_file(self, full_current_path):
         """
@@ -57,6 +75,35 @@ class EpsFSOperations(Operations):
         return os.open(full_current_path + '/' + EPSFS_PERMISSIONS_FILE_NAME,
                        os.O_WRONLY | os.O_CREAT,
                        stat.S_IRWXU)
+
+    def process_perms_file(self, perms_path):
+        with open(perms_path + '/' + EPSFS_PERMISSIONS_FILE_NAME) as fp:
+            crt_dir_rules = {}
+            i = 0
+            for line in fp:
+                line_group = line.strip().split(':')
+                if len(line_group) != 2:
+                    raise IOError("The perms file doesn't follow the protocol")
+                file_name = line_group[0]
+                values = re.split('|'.join(EPSFS_OPERANDS), line_group[1])
+                ar = AccesRule(
+                    owner_type='user' if i == 0 else
+                    'group' if i == 1 else 'others',
+                    owner_id=values[0]
+                )
+                i = i+1 if i in [0, 1] else 0
+
+                operators = re.findall('|'.join(EPSFS_OPERANDS), line_group[1])
+                if len(operators) > 2:
+                    del(operators[0])
+                    del(operators[1])
+                ar.operators = operators
+
+                if not crt_dir_rules.get(file_name):
+                    crt_dir_rules[file_name] = []
+                crt_dir_rules[file_name].append(ar)
+
+            print [str(k) +'**' +  str(v[0])+ str(v[1])+ str(v[2]) + '\n\n' for k,v in crt_dir_rules.items()]
 
     # System calls
     def access(self, path, mode):
@@ -76,7 +123,7 @@ class EpsFSOperations(Operations):
     def readdir(self, path, fh):
         print '-->', self.get_eps_context()
         full_path = self._full_path(path)
-
+        self.process_perms_file(full_path)
         dirents = ['.', '..']
         if os.path.isdir(full_path):
             dirents.extend(os.listdir(full_path))
