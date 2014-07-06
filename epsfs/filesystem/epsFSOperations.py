@@ -54,10 +54,11 @@ class EpsFSOperations(Operations):
         """
         Return true if required_id is an ancestor of group_id
         """
+        print group_id, '^^^^^^', required_id
         crt_gid = group_id
         while True:
             crt_group = self.groups.get(crt_gid)
-            if not crt_group.get('parent'):
+            if not crt_group or not crt_group.get('parent'):
             # didn't found the required_id and the current pos is the root of
             # the branch
                 return False
@@ -81,35 +82,113 @@ class EpsFSOperations(Operations):
             crt_dir_rules = {}
             i = 0
             for line in fp:
+                if not line.strip():
+                    continue
                 line_group = line.strip().split(':')
                 if len(line_group) != 2:
                     raise IOError("The perms file doesn't follow the protocol")
                 file_name = line_group[0]
-                values = re.split('|'.join(EPSFS_OPERANDS), line_group[1])
+                values = [s.strip() for s in re.split('|'.join(EPSFS_OPERANDS),
+                                                      line_group[1])]
+
                 ar = AccesRule(
-                    owner_type='user' if i == 0 else
-                    'group' if i == 1 else 'others',
-                    owner_id=values[0]
+                    owner_type='user' if i == 0 else ('group' if i == 1
+                                                      else 'others'),
+                    owner_id=int(values[0].strip())
+                        if values[0].strip() else None,
+                    protocol=values[1] if values[1].lower() == 'ssh' else True,
+                    ip=values[2] if values[2] else True,
+                    date=values[3] if values[3] else True,
+                    time_interval=values[4] if values[4] else True,
                 )
+                raw_perms = values[-1]
+                #Establish the permissions
+                temp = [False, False, False]
+                if len(raw_perms) == 3:
+                    temp[0] = True if raw_perms[0] == 'r' else False
+                    temp[1] = True if raw_perms[1] == 'w' else False
+                    temp[2] = True if raw_perms[2] == 'x' else False
+                ar.effective_rights = temp
+
+                # VERY IMPORTANT: increment the crt_position
                 i = i+1 if i in [0, 1] else 0
 
                 operators = re.findall('|'.join(EPSFS_OPERANDS), line_group[1])
                 if len(operators) > 2:
                     del(operators[0])
-                    del(operators[1])
+                    del(operators[-1])
                 ar.operators = operators
 
                 if not crt_dir_rules.get(file_name):
                     crt_dir_rules[file_name] = []
                 crt_dir_rules[file_name].append(ar)
 
-            print [str(k) +'**' +  str(v[0])+ str(v[1])+ str(v[2]) + '\n\n' for k,v in crt_dir_rules.items()]
+            return crt_dir_rules
+
+    def get_user_access_for_file(self, epsfs_context, full_file_path):
+        """
+        Open the corresponding ,epsfs file and retrieve the acces rights
+        returns something like rwx or r-x ...
+        """
+        request = {
+            'uid': epsfs_context[0],
+            'gids': epsfs_context[1],
+            'pid': epsfs_context[2]}
+        dir_path, filename = os.path.split(full_file_path)
+        if not filename:
+            return [True, True, True] #all users are allowed to access the root
+        crt_dir_rules = self.process_perms_file(dir_path)
+        for k, v in crt_dir_rules.items():
+            for j in v:
+                print k, '===', j
+        print '\n you are here: ', dir_path, '->', filename, '\n'
+
+        return_perms = [False, False, False]
+        file_attached_perms = crt_dir_rules.get(filename)
+        if not file_attached_perms:
+            print 'No access rules found on disk'
+            return return_perms
+
+        for access_rule in file_attached_perms:
+            if access_rule.owner_type == 'user':
+                if access_rule.owner_id != request['uid']:
+                    # the user restrictions do not apply for this request
+                    continue
+                # more stuff here
+                return access_rule.effective_rights
+            elif access_rule.owner_type == 'group':
+                gid_match = None
+                # maby check straight forward if it matches ??
+                if access_rule.owner_id in request.get('gids'):
+                    gid_match = access_rule.owner_id
+                else:
+                    for gid in request.get('gids'):
+                        if self.check_ancestor(gid, access_rule.owner_id):
+                            gid_match = gid
+                            break
+                if not gid_match:
+                    # the group restrictions do not apply for this request
+                    continue
+                return access_rule.effective_rights
+            elif access_rule.owner_type == 'others':
+                #check all the stuffs here
+                return access_rule.effective_rights
+        # for i in asdf:
+        #     perms = [x | y for (x, y) in zip(perms, i.effective_rights)]
+        return return_perms
 
     # System calls
     def access(self, path, mode):
+        # same as open for file aka read
         full_path = self._full_path(path)
+        computed_perms = self.get_user_access_for_file(self.get_eps_context(),
+                                                       full_path)
+        if not computed_perms[0]:
+            raise FuseOSError(errno.EACCES)
+
         if not os.access(full_path, mode):
             raise FuseOSError(errno.EACCES)
+
 
     def getattr(self, path, fh=None):
         full_path = self._full_path(path)
@@ -121,9 +200,14 @@ class EpsFSOperations(Operations):
                                                         'st_rdev'))
 
     def readdir(self, path, fh):
+        # aka execute
         print '-->', self.get_eps_context()
         full_path = self._full_path(path)
-        self.process_perms_file(full_path)
+        computed_perms = self.get_user_access_for_file(self.get_eps_context(),
+                                                       full_path)
+        if not computed_perms[2]:
+            raise FuseOSError(errno.EACCES)
+
         dirents = ['.', '..']
         if os.path.isdir(full_path):
             dirents.extend(os.listdir(full_path))
@@ -132,6 +216,7 @@ class EpsFSOperations(Operations):
             yield r
 
     def readlink(self, path):
+        print "readlink"
         pathname = os.readlink(self._full_path(path))
         if pathname.startswith("/"):
             # Path name is absolute, sanitize it.
@@ -158,11 +243,12 @@ class EpsFSOperations(Operations):
         dir_path, filename = os.path.split(path)
         if filename == EPSFS_PERMISSIONS_FILE_NAME:
             raise FuseOSError(errno.ENOENT)
+        print "open"
         upper_bound = datetime.time(18, 0, 0)
         lower_bound = datetime.time(9, 0, 0)
         now = datetime.datetime.now().time()
         # if now > upper_bound or now < lower_bound:
-        # raise FuseOSError(errno.EACCES, "adfsdfsdfas")
+        # raise FuseOSError(errno.EACCES)
         full_path = self._full_path(path)
         return os.open(full_path, flags)
 

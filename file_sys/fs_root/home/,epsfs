@@ -1,9 +1,9 @@
-dir1:
-dir1:
-dir1:
+dir_1:1000<and><and><and><and><and>rwx
+dir_1:1<and><and><and><and><and>rwx
+dir_1:<and><and><and><and><and>---
 file1_master:1000<and><and><and>*<and>*<and>rwx
 file1_master:3<and><and>*<and>*<and>*<and>rwx
 file1_master:<and>*<and>*<and>*<and>---
-file2:
-file2:
-file2:
+file2:1000<and><and><and><and><and>rwx
+file2:4<and><and><and><and><and>---
+file2:<and><and><and><and><and>---
