@@ -6,4 +6,4 @@ file1_master:2<and><and><and><and><and>rwx
 file1_master:<and><and><and><and>---
 file2:1000<and><and><and><and><and>rwx
 file2:4<and><and><and><and><and>---
-file2:<and>ssh<and>192.168.1.5<and><and><and>rwx
+file2:<and>ssh<and>127.0.0.1<and><and>11.00.00,12.30.00<and>rwx

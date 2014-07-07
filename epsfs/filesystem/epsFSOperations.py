@@ -21,11 +21,6 @@ class EpsFSOperations(Operations):
         # self.processed = False
         #self.processed_files = [] this will help you with concurrent users
 
-        for i, v in self.users.items():
-            print i, '--->', v
-        for i, v in self.groups.items():
-            print i, '--->', v
-
     # Utils
     def _full_path(self, partial):
         if partial.startswith("/"):
@@ -98,7 +93,7 @@ class EpsFSOperations(Operations):
                     protocol=values[1] if values[1].lower() == 'ssh' else True,
                     ip=values[2] if values[2] else True,
                     date=values[3] if values[3] else True,
-                    time_interval=values[4] if values[4] else True,
+                    time_interval=values[4].split(',') if values[4] else True,
                 )
                 raw_perms = values[-1]
                 #Establish the permissions
@@ -137,15 +132,11 @@ class EpsFSOperations(Operations):
         if not filename:
             return [True, True, True]  #all users are allowed to access the root
         crt_dir_rules = self.process_perms_file(dir_path)
-        for k, v in crt_dir_rules.items():
-            for j in v:
-                print k, '===', j
-        print '\n you are here: ', dir_path, '->', filename, '\n'
 
         return_perms = [False, False, False]
         file_attached_perms = crt_dir_rules.get(filename)
         if not file_attached_perms:
-            print 'No access rules found on disk'
+            # print 'No access rules found on disk'
             return return_perms
 
         for access_rule in file_attached_perms:
@@ -170,26 +161,44 @@ class EpsFSOperations(Operations):
                     continue
                 return access_rule.effective_rights
             elif access_rule.owner_type == 'others':
-                #check ssh and ip here
-
-                if access_rule.protocol:
-                    print 'sssshsshhshshs match here '
-                    crt_user = self.users.get(request['uid'], {})
-                    ssh_users = get_connected_ssh_users()
-
-                    print crt_user
-                    print 'request', ssh_users.get(crt_user.get('uname'),{}).get('protocol')
-                    print 'fileattach', access_rule.protocol
-                    SSH_STATUS = True if ssh_users.get(
-                        crt_user.get('uname'),
-                        {}).get('protocol') == access_rule.protocol else False
-                    print 'ssh->', SSH_STATUS
-
-
+                if not self.check_additional_perms(request, access_rule):
+                    return return_perms
                 return access_rule.effective_rights
         # for i in asdf:
         #     perms = [x | y for (x, y) in zip(perms, i.effective_rights)]
         return return_perms
+
+    def check_additional_perms(self, request, access_rule):
+        crt_user = self.users.get(request['uid'], {})
+        ssh_users = get_connected_ssh_users()
+        SSH_STATUS = True
+        IP_STATUS = True
+        TIME_INT_STATUS = True
+
+        if access_rule.protocol != True:
+            SSH_STATUS = True if ssh_users.get(
+                crt_user.get('uname'),
+                {}).get('protocol') == access_rule.protocol else False
+        if access_rule.ip != True:
+            IP_STATUS = True if ssh_users.get(
+                crt_user.get('uname'),
+                {}).get('ip') == access_rule.ip else False
+
+        if access_rule.time_interval != True:
+            lbnd = access_rule.time_interval[0].split('.')
+            ubnd = access_rule.time_interval[1].split('.')
+            upper_bound = datetime.time(int(lbnd[0]), int(lbnd[1]),
+                                        int(lbnd[2]))
+            lower_bound = datetime.time(int(ubnd[0]), int(ubnd[1]),
+                                        int(ubnd[2]))
+            now = datetime.datetime.now().time()
+            TIME_INT_STATUS = True if now > upper_bound and\
+                                      now < lower_bound else False
+
+        eval_string = 'SSH_STATUS %s IP_STATUS %s TIME_INT_STATUS'
+        evl = eval(eval_string
+                   % (access_rule.operators[0].strip('<>'), access_rule.operators[1].strip('<>')))
+        return evl
 
     # System calls
     def access(self, path, mode):
@@ -215,7 +224,6 @@ class EpsFSOperations(Operations):
 
     def readdir(self, path, fh):
         # aka execute
-        print '-->', self.get_eps_context()
         full_path = self._full_path(path)
         computed_perms = self.get_user_access_for_file(self.get_eps_context(),
                                                        full_path)
@@ -230,7 +238,6 @@ class EpsFSOperations(Operations):
             yield r
 
     def readlink(self, path):
-        print "readlink"
         pathname = os.readlink(self._full_path(path))
         if pathname.startswith("/"):
             # Path name is absolute, sanitize it.
@@ -242,7 +249,6 @@ class EpsFSOperations(Operations):
         return os.mknod(self._full_path(path), mode, dev)
 
     def rmdir(self, path):
-        print "rmdir"
         full_path = self._full_path(path)
         return os.rmdir(full_path)
 
@@ -253,28 +259,26 @@ class EpsFSOperations(Operations):
         self.create_perms_file(full_path)
         return return_val
 
+    def add_rules_to_perms_file(self, filename):
+        pass
+
     # File methods
     def open(self, path, flags):
         full_path = self._full_path(path)
         dir_path, filename = os.path.split(path)
         if filename == EPSFS_PERMISSIONS_FILE_NAME:
             raise FuseOSError(errno.ENOENT)
-
-        upper_bound = datetime.time(18, 0, 0)
-        lower_bound = datetime.time(9, 0, 0)
-        now = datetime.datetime.now().time()
-        # if now > upper_bound or now < lower_bound:
-        # raise FuseOSError(errno.EACCES)
         return os.open(full_path, flags)
 
     def create(self, path, mode, fi=None):
         uid, gid, pid = self.get_eps_context()
-        print mode, "-->", fi, type(mode)
         dir_path, filename = os.path.split(path)
         if filename == EPSFS_PERMISSIONS_FILE_NAME:
             raise FuseOSError(errno.ENOENT)
         full_path = self._full_path(path)
-        return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
+        x =  os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
+        # self.add_rules_to_perms_file(filename, )
+        return x
 
     def read(self, path, length, offset, fh):
         full_path = self._full_path(path)

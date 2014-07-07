@@ -1,4 +1,5 @@
 import os
+from subprocess import Popen, PIPE
 
 from settings import EPSFS_CONFIG_USR, EPSFS_CONFIG_GRP, EPSFS_SSH_MOCK
 
@@ -45,14 +46,31 @@ def load_groups():
     return groups
 
 
+# def get_connected_ssh_users():
+#     ssh_users = {}
+#     with open(EPSFS_SSH_MOCK) as fp:
+#         for line in fp:
+#             data = line.strip().split(';')
+#             ssh_users[data[0]] = {
+#                 'protocol': data[1],
+#                 'ip': data[2],
+#             }
+#     return ssh_users
+
+
 def get_connected_ssh_users():
     ssh_users = {}
-    with open(EPSFS_SSH_MOCK) as fp:
-        for line in fp:
-            data = line.strip().split(';')
-            ssh_users[data[0]] = {
-                'protocol': data[1],
-                'ip': data[2],
-            }
+    #'sudo netstat -atpn|grep ssh'
+    out, err = Popen(
+        'sudo netstat -atpn|grep ssh | '
+        'awk -F " " \'{ print $5 ";" $7 ";" $8 }\'',
+        shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE).communicate()
+    if out:
+        for line in out.splitlines():
+            line_items = line.split(';')
+            if len(line_items) == 3 and line_items[2]:
+                ssh_users[line_items[2]] = {
+                    'protocol': 'ssh' if 'ssh' in line_items[1] else '',
+                    'ip': line_items[0].split(':')[0]
+                }
     return ssh_users
-
