@@ -7,7 +7,7 @@ import re
 
 from fuse import FuseOSError, Operations, fuse_get_context
 from settings import EPSFS_PERMISSIONS_FILE_NAME, EPSFS_AND, EPSFS_OR
-from sys_utils import load_users, load_groups
+from sys_utils import load_users, load_groups, get_connected_ssh_users
 from models import AccesRule
 
 EPSFS_OPERANDS = (EPSFS_AND, EPSFS_OR)
@@ -54,7 +54,6 @@ class EpsFSOperations(Operations):
         """
         Return true if required_id is an ancestor of group_id
         """
-        print group_id, '^^^^^^', required_id
         crt_gid = group_id
         while True:
             crt_group = self.groups.get(crt_gid)
@@ -136,7 +135,7 @@ class EpsFSOperations(Operations):
             'pid': epsfs_context[2]}
         dir_path, filename = os.path.split(full_file_path)
         if not filename:
-            return [True, True, True] #all users are allowed to access the root
+            return [True, True, True]  #all users are allowed to access the root
         crt_dir_rules = self.process_perms_file(dir_path)
         for k, v in crt_dir_rules.items():
             for j in v:
@@ -171,7 +170,22 @@ class EpsFSOperations(Operations):
                     continue
                 return access_rule.effective_rights
             elif access_rule.owner_type == 'others':
-                #check all the stuffs here
+                #check ssh and ip here
+
+                if access_rule.protocol:
+                    print 'sssshsshhshshs match here '
+                    crt_user = self.users.get(request['uid'], {})
+                    ssh_users = get_connected_ssh_users()
+
+                    print crt_user
+                    print 'request', ssh_users.get(crt_user.get('uname'),{}).get('protocol')
+                    print 'fileattach', access_rule.protocol
+                    SSH_STATUS = True if ssh_users.get(
+                        crt_user.get('uname'),
+                        {}).get('protocol') == access_rule.protocol else False
+                    print 'ssh->', SSH_STATUS
+
+
                 return access_rule.effective_rights
         # for i in asdf:
         #     perms = [x | y for (x, y) in zip(perms, i.effective_rights)]
@@ -228,6 +242,7 @@ class EpsFSOperations(Operations):
         return os.mknod(self._full_path(path), mode, dev)
 
     def rmdir(self, path):
+        print "rmdir"
         full_path = self._full_path(path)
         return os.rmdir(full_path)
 
@@ -240,16 +255,16 @@ class EpsFSOperations(Operations):
 
     # File methods
     def open(self, path, flags):
+        full_path = self._full_path(path)
         dir_path, filename = os.path.split(path)
         if filename == EPSFS_PERMISSIONS_FILE_NAME:
             raise FuseOSError(errno.ENOENT)
-        print "open"
+
         upper_bound = datetime.time(18, 0, 0)
         lower_bound = datetime.time(9, 0, 0)
         now = datetime.datetime.now().time()
         # if now > upper_bound or now < lower_bound:
         # raise FuseOSError(errno.EACCES)
-        full_path = self._full_path(path)
         return os.open(full_path, flags)
 
     def create(self, path, mode, fi=None):
@@ -262,12 +277,21 @@ class EpsFSOperations(Operations):
         return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
 
     def read(self, path, length, offset, fh):
-        print 'read'
+        full_path = self._full_path(path)
+        computed_perms = self.get_user_access_for_file(self.get_eps_context(),
+                                                       full_path)
+        if not computed_perms[0]:
+            raise FuseOSError(errno.EACCES)
+
         os.lseek(fh, offset, os.SEEK_SET)
         return os.read(fh, length)
 
     def write(self, path, buf, offset, fh):
-        print 'write'
+        full_path = self._full_path(path)
+        computed_perms = self.get_user_access_for_file(self.get_eps_context(),
+                                                       full_path)
+        if not computed_perms[1]:
+            raise FuseOSError(errno.EACCES)
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
 

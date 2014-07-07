@@ -1,6 +1,6 @@
 import os
 
-from settings import EPSFS_CONFIG_USR, EPSFS_CONFIG_GRP
+from settings import EPSFS_CONFIG_USR, EPSFS_CONFIG_GRP, EPSFS_SSH_MOCK
 
 
 def get_user_data(uname=None, uid=None):
@@ -45,11 +45,14 @@ def load_groups():
     return groups
 
 
-def get_groups(gname):
-    pass
-
-
 def get_connected_ssh_users():
-    pass
-
+    ssh_users = {}
+    with open(EPSFS_SSH_MOCK) as fp:
+        for line in fp:
+            data = line.strip().split(';')
+            ssh_users[data[0]] = {
+                'protocol': data[1],
+                'ip': data[2],
+            }
+    return ssh_users
 

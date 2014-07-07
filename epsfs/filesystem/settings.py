@@ -5,6 +5,7 @@ FILESYSTEM_MOUNTPOINT = '/epsfs/'
 
 EPSFS_CONFIG_USR = '%susers.,epsfs' % ABSOLUTE_FILESYSTEM_PATH
 EPSFS_CONFIG_GRP = '%sgroups.,epsfs' % ABSOLUTE_FILESYSTEM_PATH
+EPSFS_SSH_MOCK = '%snetstat_mock.,epsfs' % ABSOLUTE_FILESYSTEM_PATH
 
 RUN_CFG_DEFAULT = {
     'operations': None,     # Must add here an instance of my Operation set
