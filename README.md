@@ -1,6 +1,7 @@
-EpsFS
-=====
-##Kind of docs (also a very good example of how you sholudn't write a documentation)
+EpsFS Extended Permisions Set File System
+=========================================
+
+##This is just a bunch of side notes - not a doc 
 
 
 * Mounting the fs
@@ -27,14 +28,14 @@ i.e. any other user trying to access my mount point will see the following
 permission set:
 ``d????????? ? ?    ?       ?            ?``
 
-
+If you want other users to acces the filesystem, make sure you edit the fuse config in ``/etc`` 
 
 * Connecting to my custom ssh server:
+
     ``ssh user@127.0.0.1 -p 8022 #localhost - not really cool``
 
     ``ssh user@192.168.1.x -p 8022 #cooler but you have to setup port fwd on the router``
-
-* When generatin' ssh keys use ``-b 1024`` argument
+I guess I should get back to finish implementing this thing
 
 
 * USER MANAGEMENT - posix standard way
@@ -42,18 +43,21 @@ permission set:
 
 ``sudo passwd <uname>``
 
-the user wil also have a ``/home/<username>/media`` directory
-this will act like the global /media directory
+
+each user should consider /epsfs/home as their homedir; update that in /etc/passwd when creatin' a new user
 
 
 use ``awk`` to get the available sys users and uids
 ``awk -F":" '{ print $1 ";" $3 }' /etc/passwd``
 
-*if your system ever crashes, unmount the mountpoint using:
+* if your system ever crashes, unmount the mountpoint using:
     ``fusermount -u <mount_dir>``
 
-*i linked the bash_history file to /dev/null just to make user's history more secure
+* i linked the bash_history file to /dev/null just to make user's history more secure
     ``ln /dev/null .bash_history -sf``
 
+* This is a naive way used to figure out which users are connected via ssh (The best way would be to make that custom ssh server work and filter all the requests ...)
 
-netstat -atpn|grep ssh
+``netstat -atpn|grep ssh``
+
+REMEMBER: the fs uses this utility so the user mounting the file_system must have the ability to run sudo commands whithout being required to enter a password  (use ``sudo visudo`` to make the user a demi-god-root user :) )
