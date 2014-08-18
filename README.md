@@ -1,7 +1,7 @@
 EpsFS Extended Permisions Set File System
 =========================================
 
-##This is just a bunch of side notes - not a doc 
+##This are just a bunch of side notes - not a doc 
 
 
 * Mounting the fs
